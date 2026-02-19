@@ -301,7 +301,8 @@ calibration:
 
 ## ArSproutの参考実装
 
-- 動作終了後にクーリング時間を設ける（ReverseWaitTime=3秒）
+- 動作終了後にクーリング時間を設ける（ReverseWaitTime、実機デフォルト3秒）
+- クーリング時間はユーザー設定YAML（actuator_config.yaml の `cooling_sec`）で定義
 - タイマー動作中は追加操作をブロック
 - priority機構で緊急停止は別系統
 - 高優先度パケットが途絶 → 自律制御にフォールバック（Level 5相当）
