@@ -123,57 +123,123 @@ IDLE → [命令受信] → MOVING → [タイマー完了] → COOLING → [ク
                     位置確定 → 新命令実行        クーリング中断 → 新命令実行
 ```
 
-## 設計課題（優先度モデル適用後）
+## 設計決定事項
 
-### 1. クーリング時間
+### 1. 同時操作
+
+- 電力制約は当面無視
+- 複数アクチュエータの同時操作は許可
+
+### 2. キャリブレーション
+
+- **午前0時に全閉ルールタスクを自動実行** → position=0% リセット
+- **ブリッジ起動時にも全閉ルールタスクを実行**
+- 全閉/全開の所要時間はユーザーがYAMLで設定（ハウスごとに異なるため）
+- キャリブレーション中は L3/L4 をブロック
+
+### 3. クーリング時間
 
 - ArSproutの実装: 動作終了後にクーリング時間を設定
 - クーリング中は同レベル以下の操作を受け付けない（モーター保護）
 - L1/L2はクーリングを無視して割り込み可能
 - パラメータ: `cooling_sec` をアクチュエータごとに設定
 
-### 2. キャリブレーション
-
-- 起動時 or 手動で「全閉」送信 → position=0% にリセット
-- 機械リミットがあるので全閉方向に十分な時間ONすれば確実
-- 頻度: 1日1回? 起動時のみ?
-- キャリブレーション中は L3/L4 をブロック
-
-### 3. 安全停止（ブリッジ停止時）
+### 4. 安全停止（ブリッジ停止時・ネットワーク断）
 
 - Level 5（ArSprout自律制御）にフォールバック
 - ブリッジからのパケットが途絶 → ArSprout側が自律制御に戻る
 - CCMプロトコルのpriority機構がそのまま活きる
+- ネットワーク断（VPN切れ等）: ローカルPC側はStarlink等で冗長化を検討
 
-### 4. 電磁弁 (Irri) の特殊性
+### 5. 電磁弁 (Irri) の特殊性
 
 - 物理リミットがないため、開けっぱなし = 水が出続ける
 - 最大時間ガード（現在3600秒）は必須
 - 全レベルで最大時間を強制（L1緊急停止でも最大値チェック）
 
-### 5. 設定ファイル (actuator_config.json)
+### 6. 設定ファイル (actuator_config.yaml)
+
+```yaml
+# ユーザーがキャリブレーション値を記述
+actuators:
+  VenSdWin:
+    type: duration
+    full_open_sec: 60       # 全閉→全開の所要時間（ユーザー計測）
+    full_close_sec: 55      # 全開→全閉の所要時間（重力で速い場合あり）
+    cooling_sec: 5
+  VenRfWin:
+    type: duration
+    full_open_sec: 45
+    full_close_sec: 40
+    cooling_sec: 5
+  ThCrtn:
+    type: duration
+    full_open_sec: 90
+    full_close_sec: 90
+    cooling_sec: 5
+  LsCrtn:
+    type: duration
+    full_open_sec: 90
+    full_close_sec: 90
+    cooling_sec: 5
+  Irri:
+    type: duration
+    max_duration_sec: 3600
+    cooling_sec: 3
+    has_limit: false
+  VenFan:
+    type: onoff
+    cooling_sec: 0
+  CirHoriFan:
+    type: onoff
+    cooling_sec: 0
+  AirHeatBurn:
+    type: onoff
+    cooling_sec: 0
+  AirHeatHP:
+    type: onoff
+    cooling_sec: 0
+  CO2Burn:
+    type: onoff
+    cooling_sec: 0
+  AirCoolHP:
+    type: onoff
+    cooling_sec: 0
+  AirHumFog:
+    type: onoff
+    cooling_sec: 0
+
+calibration:
+  daily_reset_hour: 0      # 毎日午前0時に全閉キャリブレーション
+  on_startup: true          # ブリッジ起動時にも全閉実行
+```
+
+### ランタイム状態 (state.json — ブリッジが自動管理)
 
 ```json
 {
-  "VenSdWin": {
-    "type": "duration",
-    "full_travel_sec": 60,
-    "cooling_sec": 5,
-    "position_pct": 0,
-    "last_calibrated": "2026-02-19T10:00:00Z"
-  },
-  "Irri": {
-    "type": "duration",
-    "max_duration_sec": 3600,
-    "cooling_sec": 3,
-    "has_limit": false
-  },
-  "VenFan": {
-    "type": "onoff",
-    "cooling_sec": 0
-  }
+  "VenSdWin": {"position_pct": 0, "state": "idle", "last_calibrated": "2026-02-19T00:00:00Z"},
+  "VenRfWin": {"position_pct": 0, "state": "idle", "last_calibrated": "2026-02-19T00:00:00Z"},
+  "ThCrtn":   {"position_pct": 0, "state": "idle", "last_calibrated": "2026-02-19T00:00:00Z"},
+  "LsCrtn":   {"position_pct": 0, "state": "idle", "last_calibrated": "2026-02-19T00:00:00Z"}
 }
 ```
+
+## 要確認タスク
+
+### TASK-A: oprパケットの内容確認
+
+- nodesレスポンスに `Irriopr`, `VenSdWinopr`, `VenFanopr` 等が見えている
+- これがArSproutの**実際の動作状態フィードバック**であれば、位置推定の信頼性が向上する
+- 確認方法: 駆動系が動いている状態で `ccm_receive_test.py --filter opr` を実行し、
+  値の変化を観察する
+- **前提**: 駆動系が動いている必要がある（現在ブレーカーOFF）
+
+### TASK-B: ArSproutの操作ログ確認
+
+- ArSproutが灌水等の操作履歴を内部に記録しているか確認
+- ArSprout管理画面（192.168.1.65）にログ閲覧機能があるか
+- 記録があればブリッジ側でのログ実装を簡素化できる可能性
 
 ## ArSproutの参考実装
 
