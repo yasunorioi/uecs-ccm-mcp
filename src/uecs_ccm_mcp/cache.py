@@ -34,11 +34,13 @@ ACTUATOR_TYPES = {
     "VenSdWin",      # Side window (側窓)
     "ThCrtn",        # Thermal curtain (保温カーテン)
     "LsCrtn",        # Light-shading curtain (遮光カーテン)
+    "AirCoolHP",     # Cooling heat pump (冷房ヒートポンプ)
+    "AirHumFog",     # Humidifying fog (加湿フォグ)
 }
 
 WEATHER_TYPES = {
     "WAirTemp", "WAirHumid", "WWindSpeed", "WWindDir16",
-    "WRainfall", "WRainfallAmt",
+    "WRainfall", "WRainfallAmt", "WLUX",
 }
 
 

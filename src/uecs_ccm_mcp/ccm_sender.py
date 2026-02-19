@@ -37,6 +37,8 @@ class SafetyLimits:
             "VenSdWin",      # Side window (側窓)
             "ThCrtn",        # Thermal curtain (保温カーテン)
             "LsCrtn",        # Light-shading curtain (遮光カーテン)
+            "AirCoolHP",     # Cooling heat pump (冷房ヒートポンプ)
+            "AirHumFog",     # Humidifying fog (加湿フォグ)
         }
     )
     min_send_interval_seconds: float = 1.0

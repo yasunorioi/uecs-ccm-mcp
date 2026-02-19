@@ -39,6 +39,8 @@ ALLOWED_ACTUATORS = {
     "VenSdWin": "Side window (側窓)",
     "ThCrtn": "Thermal curtain (保温カーテン)",
     "LsCrtn": "Light-shading curtain (遮光カーテン)",
+    "AirCoolHP": "Cooling heat pump (冷房HP)",
+    "AirHumFog": "Humidifying fog (加湿フォグ)",
 }
 
 
