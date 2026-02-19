@@ -7,7 +7,10 @@ Provides 5 tools for greenhouse monitoring and control via UECS-CCM protocol:
 - get_weather_summary: Read outdoor weather station data
 - list_nodes: List active UECS nodes on the network
 
-Runs a background UDP multicast receiver to cache incoming CCM data.
+Supports two modes:
+- Local mode: Runs UDP multicast receiver directly (default)
+- Bridge mode: Connects to ccm_bridge.py HTTP API via BRIDGE_URL env var
+
 Uses stdio transport for Claude Desktop/Code integration.
 """
 
@@ -16,6 +19,9 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
+import urllib.request
+import urllib.error
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import AsyncIterator
@@ -29,22 +35,65 @@ from .ccm_sender import CcmSender, SafetyLimits
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Shared state
+# Bridge mode: if BRIDGE_URL is set, use HTTP API instead of local receiver
+BRIDGE_URL = os.environ.get("BRIDGE_URL", "").rstrip("/")
+
+# Shared state (used in local mode only)
 _cache = SensorCache()
 _receiver = CcmReceiver(_cache)
 _sender = CcmSender()
 
 
+def _bridge_get(path: str) -> dict:
+    """GET request to the bridge API. Raises on error."""
+    url = BRIDGE_URL + path
+    req = urllib.request.Request(url)
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.URLError as e:
+        raise ConnectionError(f"Bridge unreachable ({url}): {e}") from e
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Bridge returned invalid JSON ({url}): {e}") from e
+
+
+def _bridge_post(path: str, data: dict) -> dict:
+    """POST JSON to the bridge API. Raises on error."""
+    url = BRIDGE_URL + path
+    body = json.dumps(data).encode("utf-8")
+    req = urllib.request.Request(
+        url, data=body, headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode("utf-8", errors="ignore")
+        try:
+            return json.loads(error_body)
+        except json.JSONDecodeError:
+            raise ConnectionError(f"Bridge error ({url}): {e.code} {error_body}") from e
+    except urllib.error.URLError as e:
+        raise ConnectionError(f"Bridge unreachable ({url}): {e}") from e
+
+
 @asynccontextmanager
 async def lifespan(server: FastMCP) -> AsyncIterator[dict]:
     """Start/stop the CCM receiver as a background task."""
-    await _receiver.start()
-    logger.info("UECS-CCM MCP server started")
-    try:
-        yield {"cache": _cache, "sender": _sender}
-    finally:
-        await _receiver.stop()
-        logger.info("UECS-CCM MCP server stopped")
+    if BRIDGE_URL:
+        logger.info("UECS-CCM MCP server started (bridge mode: %s)", BRIDGE_URL)
+        try:
+            yield {"bridge_url": BRIDGE_URL}
+        finally:
+            logger.info("UECS-CCM MCP server stopped")
+    else:
+        await _receiver.start()
+        logger.info("UECS-CCM MCP server started (local mode)")
+        try:
+            yield {"cache": _cache, "sender": _sender}
+        finally:
+            await _receiver.stop()
+            logger.info("UECS-CCM MCP server stopped")
 
 
 mcp = FastMCP(
@@ -79,6 +128,27 @@ def get_sensor_data(house_id: str = "h1", sensor_types: list[str] | None = None)
         house_id: House identifier (e.g., "h1"). Derived from CCM room number.
         sensor_types: Filter by sensor types. None or ["all"] returns all sensors.
     """
+    if BRIDGE_URL:
+        try:
+            result = _bridge_get(f"/sensors?house={house_id}")
+        except (ConnectionError, ValueError) as e:
+            return json.dumps({"error": str(e)})
+        # Apply sensor_types filter on client side
+        if sensor_types and "all" not in sensor_types:
+            name_map = {
+                "temperature": "InAirTemp",
+                "humidity": "InAirHumid",
+                "co2": "InAirCO2",
+                "soil_temp": "SoilTemp",
+                "solar_radiation": "InRadiation",
+            }
+            wanted = {name_map.get(t, t) for t in sensor_types}
+            result["sensors"] = {
+                k: v for k, v in result.get("sensors", {}).items() if k in wanted
+            }
+            result["count"] = len(result["sensors"])
+        return json.dumps(result, indent=2, ensure_ascii=False)
+
     sensors = _cache.get_sensors(house_id)
 
     if sensor_types and "all" not in sensor_types:
@@ -109,6 +179,13 @@ def get_actuator_status(house_id: str = "h1") -> str:
     Args:
         house_id: House identifier (e.g., "h1").
     """
+    if BRIDGE_URL:
+        try:
+            result = _bridge_get(f"/actuators?house={house_id}")
+        except (ConnectionError, ValueError) as e:
+            return json.dumps({"error": str(e)})
+        return json.dumps(result, indent=2, ensure_ascii=False)
+
     actuators = _cache.get_actuators(house_id)
 
     result = {
@@ -141,6 +218,21 @@ def set_actuator(
                          automatically after this duration.
         house_id: House identifier (e.g., "h1").
     """
+    if BRIDGE_URL:
+        room = int(house_id.replace("h", "")) if house_id.startswith("h") else 1
+        try:
+            result = _bridge_post("/actuator", {
+                "actuator": actuator,
+                "state": state,
+                "priority": priority,
+                "room": room,
+            })
+        except (ConnectionError, ValueError) as e:
+            return json.dumps({"error": str(e)})
+        if duration_seconds is not None:
+            result["note"] = "duration_seconds not supported in bridge mode"
+        return json.dumps(result, indent=2, ensure_ascii=False)
+
     room = int(house_id.replace("h", "")) if house_id.startswith("h") else 1
     value = 1 if state else 0
 
@@ -183,6 +275,13 @@ def get_weather_summary(house_id: str = "h1") -> str:
     Args:
         house_id: House identifier (e.g., "h1").
     """
+    if BRIDGE_URL:
+        try:
+            result = _bridge_get(f"/weather?house={house_id}")
+        except (ConnectionError, ValueError) as e:
+            return json.dumps({"error": str(e)})
+        return json.dumps(result, indent=2, ensure_ascii=False)
+
     weather = _cache.get_weather(house_id)
 
     # Map CCM types to friendly names
@@ -224,6 +323,13 @@ def list_nodes(active_only: bool = True) -> str:
     Args:
         active_only: If True, only show nodes seen in the last 5 minutes.
     """
+    if BRIDGE_URL:
+        try:
+            result = _bridge_get("/nodes")
+        except (ConnectionError, ValueError) as e:
+            return json.dumps({"error": str(e)})
+        return json.dumps(result, indent=2, ensure_ascii=False)
+
     nodes = _cache.list_nodes(active_only=active_only)
 
     node_list = []
