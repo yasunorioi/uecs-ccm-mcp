@@ -14,15 +14,26 @@ from typing import Optional
 from .ccm_protocol import CcmPacket
 
 # CCM type classification
+# Source: ArSprout DIY kit config XMLs (arsprout-pi-configs-1.13.2)
 SENSOR_TYPES = {
     "InAirTemp", "InAirHumid", "InAirCO2", "SoilTemp",
-    "InRadiation", "SoilEC", "SoilMoisture", "Pulse",
+    "InRadiation", "SoilEC", "SoilWC", "Pulse",
+    "InAirHD", "InAirAbsHumid", "InAirDP", "IntgRadiation",
 }
 
 ACTUATOR_TYPES = {
-    "IrrircA", "Irriopr", "VenFanrcA", "CurtainrcA",
-    "MistrcA", "CO2rcA", "SideWinrcA", "HeatrcA",
-    "CircFanrcA", "VentrcA",
+    # ON/OFF switch actuators
+    "Irri",          # Irrigation valve (灌水)
+    "VenFan",        # Ventilation fan (換気扇)
+    "CirHoriFan",    # Circulation fan (攪拌扇)
+    "AirHeatBurn",   # Burner heater (暖房バーナー)
+    "AirHeatHP",     # Heat pump (暖房ヒートポンプ)
+    "CO2Burn",       # CO2 generator (CO2発生器)
+    # Position-controlled actuators (0-100%)
+    "VenRfWin",      # Roof window (天窓)
+    "VenSdWin",      # Side window (側窓)
+    "ThCrtn",        # Thermal curtain (保温カーテン)
+    "LsCrtn",        # Light-shading curtain (遮光カーテン)
 }
 
 WEATHER_TYPES = {

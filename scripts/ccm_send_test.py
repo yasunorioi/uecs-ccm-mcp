@@ -5,11 +5,11 @@ No external dependencies - uses only Python standard library.
 Designed to be scp'd to RPi and run directly.
 
 Usage:
-    python3 ccm_send_test.py IrrircA 1          # Irrigation ON
-    python3 ccm_send_test.py IrrircA 0          # Irrigation OFF
-    python3 ccm_send_test.py VenFanrcA 1        # Ventilation fan ON
-    python3 ccm_send_test.py CurtainrcA 1       # Curtain OPEN
-    python3 ccm_send_test.py --priority 1 IrrircA 0  # Emergency stop
+    python3 ccm_send_test.py Irri 1             # Irrigation ON
+    python3 ccm_send_test.py Irri 0             # Irrigation OFF
+    python3 ccm_send_test.py VenFan 1           # Ventilation fan ON
+    python3 ccm_send_test.py VenRfWin 50        # Roof window 50%
+    python3 ccm_send_test.py --priority 1 Irri 0  # Emergency stop
 
 SAFETY:
     - Only sends to allowed actuator types
@@ -25,14 +25,20 @@ MULTICAST_ADDR = "224.0.0.1"
 MULTICAST_PORT = 16520
 
 # Allowed actuator CCM types for safety
+# Source: ArSprout DIY kit config XMLs
 ALLOWED_ACTUATORS = {
-    "IrrircA": "Irrigation valve",
-    "VenFanrcA": "Ventilation fan",
-    "CurtainrcA": "Curtain/screen",
-    "MistrcA": "Mist system",
-    "CO2rcA": "CO2 valve",
-    "SideWinrcA": "Side window",
-    "HeatrcA": "Heater",
+    # ON/OFF switch actuators
+    "Irri": "Irrigation valve (灌水)",
+    "VenFan": "Ventilation fan (換気扇)",
+    "CirHoriFan": "Circulation fan (攪拌扇)",
+    "AirHeatBurn": "Burner heater (暖房バーナー)",
+    "AirHeatHP": "Heat pump (暖房HP)",
+    "CO2Burn": "CO2 generator (CO2発生器)",
+    # Position-controlled actuators (0-100%)
+    "VenRfWin": "Roof window (天窓)",
+    "VenSdWin": "Side window (側窓)",
+    "ThCrtn": "Thermal curtain (保温カーテン)",
+    "LsCrtn": "Light-shading curtain (遮光カーテン)",
 }
 
 
@@ -72,8 +78,8 @@ def main():
         description="UECS-CCM send test",
         epilog="Allowed actuators: " + ", ".join(ALLOWED_ACTUATORS.keys()),
     )
-    parser.add_argument("ccm_type", help="CCM actuator type (e.g., IrrircA)")
-    parser.add_argument("value", type=int, choices=[0, 1], help="0=OFF, 1=ON")
+    parser.add_argument("ccm_type", help="CCM actuator type (e.g., Irri, VenRfWin)")
+    parser.add_argument("value", type=int, help="0=OFF, 1=ON (switch) or 0-100 (position %%)")
     parser.add_argument(
         "--priority", "-p", type=int, default=10,
         help="Priority (1=emergency, 10=normal, 30=low). Default: 10"

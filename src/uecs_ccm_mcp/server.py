@@ -134,7 +134,7 @@ def set_actuator(
     maximum duration of 3600 seconds. Minimum 1 second between commands.
 
     Args:
-        actuator: CCM actuator type (e.g., "IrrircA", "VenFanrcA", "CurtainrcA").
+        actuator: CCM actuator type (e.g., "Irri", "VenFan", "VenRfWin", "ThCrtn").
         state: True=ON/OPEN, False=OFF/CLOSE.
         priority: CCM priority (1=emergency, 10=normal, 30=low).
         duration_seconds: Auto-OFF timer in seconds. If set, actuator turns OFF

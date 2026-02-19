@@ -32,8 +32,8 @@ def strip_ccm_suffix(ccm_type: str) -> str:
     'InAirTemp'
     >>> strip_ccm_suffix("WRainfallAmt.cMC")
     'WRainfallAmt'
-    >>> strip_ccm_suffix("IrrircA")
-    'IrrircA'
+    >>> strip_ccm_suffix("Irri")
+    'Irri'
     """
     return _CCM_SUFFIX_RE.sub("", ccm_type)
 
@@ -124,7 +124,7 @@ def build_ccm_xml(
     """Build a UECS-CCM control XML packet.
 
     Args:
-        ccm_type: CCM type string (e.g., "IrrircA").
+        ccm_type: CCM type string (e.g., "Irri", "VenRfWin").
         value: Control value (typically 0 or 1).
         room: House/room number.
         region: Region number.

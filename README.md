@@ -64,8 +64,9 @@ python3 scripts/ccm_receive_test.py
 python3 scripts/ccm_receive_test.py --filter InAirTemp
 
 # Send control packets (confirm before sending)
-python3 scripts/ccm_send_test.py IrrircA 1   # Irrigation ON
-python3 scripts/ccm_send_test.py IrrircA 0   # Irrigation OFF
+python3 scripts/ccm_send_test.py Irri 1      # Irrigation ON
+python3 scripts/ccm_send_test.py Irri 0      # Irrigation OFF
+python3 scripts/ccm_send_test.py VenRfWin 50 # Roof window 50%
 ```
 
 ## Supported Hardware

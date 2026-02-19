@@ -25,7 +25,7 @@ def _populate_cache(cache: SensorCache) -> None:
         CcmPacket("WAirHumid", "WAirHumid.mC", 60.0, room=1, region=41, source_ip="192.168.1.71", timestamp=now),
         CcmPacket("WWindSpeed", "WWindSpeed.mC", 3.5, room=1, region=41, source_ip="192.168.1.71", timestamp=now),
         CcmPacket("WRainfall", "WRainfall.mC", 0.0, room=1, region=41, source_ip="192.168.1.71", timestamp=now),
-        CcmPacket("IrrircA", "IrrircA", 0.0, room=1, source_ip="192.168.1.72", priority=15, level="A", timestamp=now),
+        CcmPacket("Irri", "Irri", 0.0, room=1, source_ip="192.168.1.72", priority=15, level="A", timestamp=now),
         CcmPacket("testFLOW", "testFLOW.cMC", 42.0, room=1, source_ip="192.168.1.74", timestamp=now),
     ]
 
@@ -68,8 +68,8 @@ class TestGetActuatorStatus:
     def test_get_actuators(self):
         result = json.loads(server.get_actuator_status("h1"))
         assert result["house_id"] == "h1"
-        assert "IrrircA" in result["actuators"]
-        assert result["actuators"]["IrrircA"]["value"] == 0.0
+        assert "Irri" in result["actuators"]
+        assert result["actuators"]["Irri"]["value"] == 0.0
 
 
 class TestSetActuator:
@@ -77,9 +77,9 @@ class TestSetActuator:
         server._sender = CcmSender(SafetyLimits(min_send_interval_seconds=0.0))
 
     def test_set_allowed_actuator(self):
-        result = json.loads(server.set_actuator("IrrircA", True))
+        result = json.loads(server.set_actuator("Irri", True))
         assert result["status"] == "ok"
-        assert result["actuator"] == "IrrircA"
+        assert result["actuator"] == "Irri"
         assert result["state"] is True
 
     def test_set_disallowed_actuator(self):
@@ -87,7 +87,7 @@ class TestSetActuator:
         assert "error" in result
 
     def test_set_with_priority(self):
-        result = json.loads(server.set_actuator("VenFanrcA", True, priority=1))
+        result = json.loads(server.set_actuator("VenFan", True, priority=1))
         assert result["status"] == "ok"
         assert result["priority"] == 1
 

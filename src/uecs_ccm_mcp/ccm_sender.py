@@ -25,15 +25,18 @@ class SafetyLimits:
 
     allowed_actuators: set[str] = field(
         default_factory=lambda: {
-            "IrrircA",      # Irrigation valve
-            "VenFanrcA",    # Ventilation fan
-            "CurtainrcA",   # Curtain/screen
-            "MistrcA",      # Mist system
-            "CO2rcA",       # CO2 valve
-            "SideWinrcA",   # Side window
-            "HeatrcA",      # Heater
-            "CircFanrcA",   # Circulation fan
-            "VentrcA",      # Vent
+            # ON/OFF switch actuators
+            "Irri",          # Irrigation valve (灌水)
+            "VenFan",        # Ventilation fan (換気扇)
+            "CirHoriFan",    # Circulation fan (攪拌扇)
+            "AirHeatBurn",   # Burner heater (暖房バーナー)
+            "AirHeatHP",     # Heat pump (暖房ヒートポンプ)
+            "CO2Burn",       # CO2 generator (CO2発生器)
+            # Position-controlled actuators (0-100%)
+            "VenRfWin",      # Roof window (天窓)
+            "VenSdWin",      # Side window (側窓)
+            "ThCrtn",        # Thermal curtain (保温カーテン)
+            "LsCrtn",        # Light-shading curtain (遮光カーテン)
         }
     )
     min_send_interval_seconds: float = 1.0

@@ -31,8 +31,10 @@ class TestClassifyCcmType:
         assert classify_ccm_type("SoilTemp") == "sensor"
 
     def test_actuator(self):
-        assert classify_ccm_type("IrrircA") == "actuator"
-        assert classify_ccm_type("VenFanrcA") == "actuator"
+        assert classify_ccm_type("Irri") == "actuator"
+        assert classify_ccm_type("VenFan") == "actuator"
+        assert classify_ccm_type("VenRfWin") == "actuator"
+        assert classify_ccm_type("ThCrtn") == "actuator"
 
     def test_weather(self):
         assert classify_ccm_type("WAirTemp") == "weather"
@@ -79,7 +81,7 @@ class TestSensorCache:
         cache.update(_make_packet("InAirTemp", 22.0))
         cache.update(_make_packet("InAirHumid", 75.0))
         cache.update(_make_packet("WAirTemp", -5.0))  # weather, not sensor
-        cache.update(_make_packet("IrrircA", 1.0))  # actuator
+        cache.update(_make_packet("Irri", 1.0))  # actuator
 
         sensors = cache.get_sensors("h1")
         assert len(sensors) == 2
@@ -88,12 +90,12 @@ class TestSensorCache:
 
     def test_get_actuators(self):
         cache = SensorCache()
-        cache.update(_make_packet("IrrircA", 1.0))
+        cache.update(_make_packet("Irri", 1.0))
         cache.update(_make_packet("InAirTemp", 22.0))
 
         actuators = cache.get_actuators("h1")
         assert len(actuators) == 1
-        assert "IrrircA" in actuators
+        assert "Irri" in actuators
 
     def test_get_weather(self):
         cache = SensorCache()
